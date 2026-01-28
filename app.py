@@ -155,13 +155,13 @@ country_df['year'] = pd.to_numeric(country_df['year'], errors='coerce')
 st.title(f"Country Figures: {selected_country}")
 
 # ==========================================
-# 3. GENERATE PLOTS
+# 3. GENERATE PLOTS & TABLES
 # ==========================================
 
 # ---------------------------------------------------------
-# PLOT 1: Disease Trends (GBD1-GBD5)
+# PLOT 1: GBD Clusters
 # ---------------------------------------------------------
-st.subheader("1. Disease Trends (GBD1–GBD5)")
+st.subheader("1. Trends in Dominant Disease Burden Regimes (GBD1–GBD5)")
 gbd_cols = ["GBD1", "GBD2", "GBD3", "GBD4", "GBD5"]
 
 if all(col in country_df.columns for col in gbd_cols):
@@ -172,15 +172,36 @@ if all(col in country_df.columns for col in gbd_cols):
     plot_df_long = plot_df.melt('year', var_name='disease', value_name='value')
     
     fig1 = plot_with_trend(plot_df_long, 'year', 'value', 'disease', GBD_PAL, 
-                           f"{selected_country} GBD1 to GBD5 trends", "Z Score")
+                           f"Trends in Dominant Disease Burden Regimes ({selected_country})", "Z Score")
     st.pyplot(fig1)
+    
+    # Table 1
+    table1_data = {
+        "Label": ["GBD1", "GBD2", "GBD3", "GBD4", "GBD5"],
+        "Meaning": [
+            "Cardiometabolic burden", 
+            "Chronic systemic and degenerative burden", 
+            "Infectious and maternal–child burden", 
+            "Mixed inflammatory and multisystem burden", 
+            "Injury, substance use, and residual burden"
+        ],
+        "Dominant Disease Profile": [
+            "Cardiovascular diseases, diabetes, kidney disease",
+            "Chronic respiratory diseases, neoplasms, neurological disorders",
+            "Respiratory infections, enteric infections, maternal and neonatal disorders",
+            "Digestive diseases, musculoskeletal disorders, skin and subcutaneous diseases",
+            "Substance use disorders, injuries, other non-communicable diseases"
+        ]
+    }
+    st.table(pd.DataFrame(table1_data))
+    
 else:
     st.warning("GBD columns missing.")
 
 # ---------------------------------------------------------
-# PLOT 2: PHDI Lines
+# PLOT 2: PHDI
 # ---------------------------------------------------------
-st.subheader("2. PHDI Trends")
+st.subheader("2. Population Health Diet Index (PHDI) Components and Total Score")
 score_cols = [c for c in df.columns if c.startswith("Score_") and not c.endswith("_Q")]
 
 phdi_map = {
@@ -218,16 +239,33 @@ if valid_phdi:
     total_data = phdi_long[phdi_long['metric'] == "PHDI_total"]
     ax2.plot(total_data['year'], total_data['value'], color='black', linewidth=3, label='_nolegend_')
     
-    ax2.set_title(f"PHDI Trends ({selected_country})", fontweight='bold')
+    ax2.set_title(f"PHDI Components and Total Score ({selected_country})", fontweight='bold')
     ax2.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     st.pyplot(fig2)
+    
+    # Table 2
+    table2_data = {
+        "Label": ["PHDI1", "PHDI2", "PHDI3"],
+        "Meaning": [
+            "Protective diet component",
+            "Neutral/staple diet component",
+            "Risk-enhancing diet component"
+        ],
+        "Dietary Interpretation": [
+            "Fruits, vegetables, legumes, whole grains, nuts, seeds",
+            "Milk, eggs, potatoes, starchy vegetables",
+            "Refined grains, processed meats, sugar-sweetened beverages"
+        ]
+    }
+    st.table(pd.DataFrame(table2_data))
+
 else:
     st.warning("Missing PHDI component columns.")
 
 # ---------------------------------------------------------
-# PLOT 3: Climate Change (Z-score change from 1990)
+# PLOT 3: Climate
 # ---------------------------------------------------------
-st.subheader("3. Climate Change from 1990")
+st.subheader("3. Deviations in Environmental Stressors and Climate Variables")
 
 cols = df.columns
 clim_map = {
@@ -258,17 +296,37 @@ if clim_map:
         clim_long = pd.concat(plot_data)
         fig3, ax3 = plt.subplots(figsize=(10, 4))
         sns.lineplot(data=clim_long, x="year", y="change", hue="metric", palette=CLIM_PAL, linewidth=2, ax=ax3)
-        ax3.set_title(f"Climate change from 1990 ({selected_country})", fontweight='bold')
+        ax3.set_title(f"Deviations in Environmental Stressors ({selected_country})", fontweight='bold')
         ax3.set_ylabel("Change from 1990 (Z-score)")
         ax3.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         st.pyplot(fig3)
+        
+        # Table 3
+        table3_data = {
+            "Variable": ["MeanT", "PM₂.₅ (PM)", "RH", "Precipitation (PR)", "Heat_index"],
+            "Meaning": [
+                "Mean annual temperature (°C)",
+                "Population-weighted fine particulate matter",
+                "Relative humidity (%)",
+                "Annual accumulated rainfall (mm)",
+                "Perceived temperature combining heat and humidity"
+            ],
+            "Health Relevance": [
+                "Chronic heat load, ecosystem and labor stress",
+                "Systemic inflammation, cardiopulmonary risk",
+                "Modifies heat stress and infectious disease transmission",
+                "Food security, drought/flood risk",
+                "Human thermoregulatory stress and mortality risk"
+            ]
+        }
+        st.table(pd.DataFrame(table3_data))
 else:
     st.warning("Climate columns not found.")
 
 # ---------------------------------------------------------
-# PLOT 4: Economic Indicators
+# PLOT 4: Economic
 # ---------------------------------------------------------
-st.subheader("4. Economic Indicators")
+st.subheader("4. Structural Buffering and Adaptive Capacity Indicators")
 econ_map = {
     "Trade": pick_column(["^Trade$", "trade"], cols),
     "Gdp": pick_column(["^Gdp$", "gdp"], cols),
@@ -288,17 +346,34 @@ if econ_map:
     
     fig4, ax4 = plt.subplots(figsize=(10, 4))
     sns.lineplot(data=econ_long, x="year", y="z", hue="metric", palette=ECON_PAL, linewidth=2, ax=ax4)
-    ax4.set_title(f"Economic Indicators ({selected_country})", fontweight='bold')
+    ax4.set_title(f"Structural Buffering and Adaptive Capacity ({selected_country})", fontweight='bold')
     ax4.set_ylabel("Z Score")
     ax4.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     st.pyplot(fig4)
+    
+    # Table 4
+    table4_data = {
+        "Variable": ["Trade", "GDP", "Urb"],
+        "Meaning": [
+            "Trade openness (% of GDP)",
+            "GDP per capita (constant USD)",
+            "Urbanization rate (%)"
+        ],
+        "Role in CARE-DDI": [
+            "Food system connectivity and shock propagation",
+            "Economic capacity for adaptation",
+            "Infrastructure access, exposure concentration"
+        ]
+    }
+    st.table(pd.DataFrame(table4_data))
+    
 else:
     st.warning("Economic columns not found.")
 
 # ---------------------------------------------------------
-# PLOT 5: HVI Disease Categories
+# PLOT 5: HVI
 # ---------------------------------------------------------
-st.subheader("5. HVI Disease Categories")
+st.subheader("5. Trends in Health Vulnerability Domains (NCD vs. ID)")
 
 hvi_df = country_df.copy()
 
@@ -316,13 +391,23 @@ if has_ncd and has_id:
     hvi_long = hvi_df[['year', 'NCD', 'ID']].melt('year', var_name='category', value_name='value')
     
     fig5 = plot_with_trend(hvi_long, 'year', 'value', 'category', HVI_PAL,
-                           f"HVI Disease Categories ({selected_country})", "Z Score (Mean)")
+                           f"Trends in Health Vulnerability Domains ({selected_country})", "Z Score (Mean)")
     st.pyplot(fig5)
+    
+    # Table 5
+    table5_data = {
+        "Term": ["NCD", "ID"],
+        "Meaning": [
+            "Non-Communicable Diseases (e.g., cardiovascular, diabetes, cancer)",
+            "Infectious Diseases, including maternal, neonatal, and nutritional disorders"
+        ]
+    }
+    st.table(pd.DataFrame(table5_data))
 
 # ---------------------------------------------------------
 # PLOT 6: Diet Categories
 # ---------------------------------------------------------
-st.subheader("6. Diet Categories")
+st.subheader("6. Dietary Adaptation Categories (Helpful, Harmful, and Neutral)")
 
 diet_cols_all = DIET_HELPFUL_COLS + DIET_HARMFUL_COLS + DIET_NEUTRAL_COLS
 valid_diet_cols = [c for c in diet_cols_all if c in country_df.columns]
@@ -343,5 +428,21 @@ if valid_diet_cols:
     diet_long = diet_df[['year', 'Helpful', 'Harmful', 'Neutral']].melt('year', var_name='category', value_name='value')
     
     fig6 = plot_with_trend(diet_long, 'year', 'value', 'category', DIET_PAL,
-                           f"Diet Categories ({selected_country})", "Z Score (Mean)")
+                           f"Dietary Adaptation Categories ({selected_country})", "Z Score (Mean)")
     st.pyplot(fig6)
+    
+    # Table 6
+    table6_data = {
+        "Category": ["Helpful", "Harmful", "Neutral"],
+        "Meaning": [
+            "Diets that reduce vulnerability and support resilience",
+            "Diets that amplify disease risk, especially under heat and pollution",
+            "Diets with context-dependent effects"
+        ],
+        "Examples": [
+            "Fruits, vegetables, legumes, whole grains",
+            "Processed meats, refined grains, sugary drinks",
+            "Milk, eggs, potatoes, coffee, tea"
+        ]
+    }
+    st.table(pd.DataFrame(table6_data))
