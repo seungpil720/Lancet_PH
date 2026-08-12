@@ -1,6 +1,25 @@
-streamlit
-pandas
-numpy
-matplotlib
-seaborn
-scipy
+# Requirements for the Lancet_PH analysis pipeline
+# (lancetph_figure1.py ... lancetph_figure5.py)
+#
+# Tested with Python 3.9-3.11. Install with:
+#   pip install -r requirements.txt
+
+pandas>=1.5
+numpy>=1.23
+matplotlib>=3.6
+scipy>=1.9
+scikit-learn>=1.1        # figure1: PCA, StandardScaler
+statsmodels>=0.13         # figure5: fixed-effects interaction models (smf.ols)
+networkx>=2.8              # figure3: correlation network construction
+geopandas>=0.12           # figure4: country-polygon geographic plots
+shapely>=1.8               # figure4: geometry backend for geopandas
+openpyxl>=3.0              # all scripts: writing .xlsx source-table workbooks
+
+# Optional (only used if you enable ISO3-to-country-name lookups in figure4.py;
+# the script runs without it using its built-in name mapping)
+# pycountry>=22.3
+
+# Only required if you also run the interactive Streamlit country-explorer
+# dashboard (app.py), not the five figure-generation scripts:
+# streamlit>=1.20
+# seaborn>=0.12
