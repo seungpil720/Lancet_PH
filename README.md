@@ -12,7 +12,8 @@ Analysis code supporting the manuscript submitted to *Lancet Public Health* (aut
 | `lancetph_figure3.py` | Main-text **Figure 3** — climate-specific temporal network analysis (early/late-period correlation networks, edge classification, coupling-strength trends). Parameters documented in Supplementary Methods S4. |
 | `lancetph_figure4.py` | Main-text **Figure 4** — geographic distribution of climate profiles and income-stratified trajectories. |
 | `lancetph_figure5.py` | Main-text **Figure 5** — country fixed-effects interaction models (8 specifications x 5 dietary patterns x 5 disease outcomes = 200 tests). Full output reproduced in Supplementary Results S8 with Benjamini-Hochberg FDR-adjusted q-values. |
-| `requirements.txt` | Python package dependencies for all five scripts. |
+| `lancetph_clustering.py` | Upstream clustering step: derives `Climate_cluster_5`, `GDD1-GDD5`/`GDD_cluster_5`, and `GBD1-GBD5`/`GBD_cluster_5` from raw variables in `data_merged_quarters.csv` (see "Clustering step" below). |
+| `requirements.txt` | Python package dependencies for all six scripts. |
 
 A Streamlit dashboard (`app.py`) for interactive per-country exploration may also be present in this repository; it is not required to reproduce any main-text or supplementary figure and has its own optional dependencies (see `requirements.txt`).
 
@@ -44,16 +45,29 @@ python lancetph_figure2.py   # -> CARE_DDI_rewritten_results_EVC_CNDcluster/
 python lancetph_figure3.py   # -> figure/ (figure3A_*, figure3B_*)
 python lancetph_figure4.py   # -> figure/ (figure4A_*, figure4B_*; requires a Natural Earth country-boundary file, see script header)
 python lancetph_figure5.py   # -> figure/ (figure5A_*)
+
+python lancetph_clustering.py   # -> clustering_outputs/ (see "Clustering step" below)
 ```
 
-Each script can be run independently; none of them depend on the outputs of another. `lancetph_figure2.py` additionally writes `CARE_DDI_four_model_results_EVC_CNDcluster.xlsx`, the workbook underlying Supplementary Results S7.
+Each script can be run independently; none of them depend on the outputs of another (`lancetph_clustering.py` can be run either before or after the figure scripts -- it reads the same raw variable columns from `data_merged_quarters.csv`, it does not require the figure scripts to have run first). `lancetph_figure2.py` additionally writes `CARE_DDI_four_model_results_EVC_CNDcluster.xlsx`, the workbook underlying Supplementary Results S7.
 
-None of the five scripts sets an explicit random seed. This does not affect their own outputs (PCA in `lancetph_figure1.py`, correlations in `lancetph_figure3.py`, and OLS in `lancetph_figure5.py` are all deterministic given fixed input), but see "Known gaps" below.
+None of the five figure scripts sets an explicit random seed; this does not affect their outputs (PCA in `lancetph_figure1.py`, correlations in `lancetph_figure3.py`, and OLS in `lancetph_figure5.py` are all deterministic given fixed input). `lancetph_clustering.py` does set a seed (`RANDOM_SEED = 123`, `n_init = 50`), since K-means is stochastic -- see below.
+
+## Clustering step (`lancetph_clustering.py`)
+
+This script derives the cluster-membership and composite-dimension columns that all five figure scripts read as pre-existing input (`Climate_cluster_5`, `GDD1-GDD5`, `GDD_cluster_5`, `GBD1-GBD5`, `GBD_cluster_5`). It was added after `preprocessing.r` (an earlier R draft of this step, also in this repository) was reviewed and found to only partially describe the pipeline that actually produced these columns.
+
+- **Climate**: the 5 raw climate variables (PM25, MeanT, RH, PR, Heat_index) are standardised and clustered directly with K-means (k=5); no dimension reduction is applied, since there are only 5 climate inputs. Verified against `Climate_cluster_5` already in `data_merged_quarters.csv`: Adjusted Rand Index = 0.98.
+- **Dietary (GDD)**: `GDD1-GDD5` are **not** scores from a single joint PCA across all 19 dietary variables (an earlier attempt at reconstructing them that way only reached ~0.77 mean correlation and is documented in this script's git history / prior commits for transparency). They are (weighted) means of five pre-defined food-group subsets (`EXPECTED_GDD_GROUPS` in the script), with Coffee and Tea converted to a gram-equivalent basis (`BEVERAGE_CONVERSION_G = 266.8`) before being averaged with the other variables in their group, since the source data reports them in different units. Reconstructing `GDD1-GDD5` this way and comparing to the columns already in `data_merged_quarters.csv` gives an **exact match**: correlation = 1.0, maximum absolute difference ≈ 1e-13 (floating-point noise). K-means on the reconstructed `GDD1-GDD5` then reproduces `GDD_cluster_5` with ARI = 1.00.
+- **Disease burden (GBD)**: same approach, using 18 raw disease-burden variables grouped into `EXPECTED_GBD_GROUPS` (no unit conversion needed). Reconstruction of `GBD1-GBD5` is again an exact match (correlation = 1.0, diff ≈ 1e-12). K-means on the reconstructed `GBD1-GBD5` reproduces `GBD_cluster_5` with ARI = 0.98.
+- A PCA diagnostic (`run_pca`) is also run on the raw variables in each domain, purely to characterise how they load onto latent components; it is not the mechanism used to build `GDD1-GDD5`/`GBD1-GBD5` (see `PCA_max_loading_vs_expected_dimensions.csv` in the output, which shows the pure-PCA grouping agrees with the actual group definitions on 66-68% of variables -- a useful diagnostic, not a discrepancy).
+
+Running `lancetph_clustering.py` reproduces all of the above automatically and writes the full set of validation tables to `clustering_outputs/` (see the script's module docstring for a description of each output file).
 
 ## Known gaps (documented here for transparency)
 
-- **The K-means clustering step is not included in this repository.** `data_merged_quarters.csv` already contains the columns `Climate_cluster_5`, `GDD_cluster_5`, and `GBD_cluster_5` as pre-computed inputs; all five scripts read these columns rather than generating them. The clustering script (PCA + K-means for the dietary, disease, and climate domains, described in Supplementary Methods S1-S2) will be added in a future update. Because K-means is stochastic, that script will need to report and fix a random seed for the cluster assignments to be exactly reproducible.
 - **`lancetph_figure2.py` contains two candidate CARE-DDI model specifications used in different parts of the script.** The script's `build_four_care_ddi_scores()` function computes four models (`baseline_equal`, `pca_weighted_linear`, `interaction_enhanced`, `conservative_interaction`) and labels `conservative_interaction` as the "recommended main model," but the script's own default plotting/export calls at the bottom of the file use `interaction_enhanced` for the combined Figure 2 panel. Which of these two was used to generate the Figure 2 published in the manuscript should be confirmed and made consistent before the final release.
+- **18 vs. 19 dietary variables.** `lancetph_figure1.py` uses all 19 raw dietary variables listed in Supplementary Table S2 directly in the PCA/biplot step. An earlier draft of the Supplementary Appendix stated that cluster analysis used 18; this repository's code does not support that explanation, and the discrepancy is flagged as unresolved in the Supplementary Appendix (Methods S2).
 
 ## Citing / reproducibility mapping
 
